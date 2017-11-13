@@ -80,11 +80,13 @@ pub fn is_empty_snap(s: &Snapshot) -> bool {
 // All fields in Ready are read-only.
 #[derive(Default, Debug, PartialEq)]
 pub struct Ready {
+    // TODO 【 from 官方 】如果 SoftState 变更，譬如添加，删除节点，ss 就不会为空。
     // The current volatile state of a Node.
     // SoftState will be nil if there is no update.
     // It is not required to consume or store SoftState.
     pub ss: Option<SoftState>,
 
+    // TODO 【 from 官方 】如果 HardState 有变更，譬如重新 vote，term 增加，hs 就不会为空。
     // The current state of a Node to be saved to stable storage BEFORE
     // Messages are sent.
     // HardState will be equal to empty state if there is no update.
@@ -96,18 +98,22 @@ pub struct Ready {
     // The returned is only valid for the request that requested to read.
     pub read_states: Vec<ReadState>,
 
+    // TODO 【 from 官方 】需要在 messages 发送之前存储到 Storage。
     // Entries specifies entries to be saved to stable storage BEFORE
     // Messages are sent.
     pub entries: Vec<Entry>,
 
+    // TODO 【 from 官方 】如果 snapshot 不是 empty，则需要存储到 Storage。
     // Snapshot specifies the snapshot to be saved to stable storage.
     pub snapshot: Snapshot,
 
+    // TODO 【 from 官方 】已经被 committed 的 raft log，可以 apply 到 State Machine 了。
     // CommittedEntries specifies entries to be committed to a
     // store/state-machine. These have previously been committed to stable
     // store.
     pub committed_entries: Option<Vec<Entry>>,
 
+    // TODO 【 from 官方 】给其他节点发送的消息，通常需要在 entries 保存成功之后才能发送，但对于 leader 来说，可以先发送 messages，在进行 entries 的保存，这个是 Raft 论文里面提到的一个优化方式，TiKV 也采用了。
     // Messages specifies outbound messages to be sent AFTER Entries are
     // committed to stable storage.
     // If it contains a MsgSnap message, the application MUST report back to raft
@@ -169,6 +175,7 @@ pub struct RawNode<T: Storage> {
     prev_hs: HardState,
 }
 
+// TODO 【 from 官方 】通过 RawNode 来使用 Raft
 impl<T: Storage> RawNode<T> {
     // NewRawNode returns a new RawNode given configuration and a list of raft peers.
     pub fn new(config: &Config, store: T, peers: &[Peer]) -> Result<RawNode<T>> {
@@ -241,6 +248,7 @@ impl<T: Storage> RawNode<T> {
         self.raft.raft_log.applied_to(applied);
     }
 
+    // TODO 【 from 官方 】我们使用 tick 函数定期驱动 Raft，在 TiKV，我们每隔 100ms 调用一次 tick。
     // Tick advances the internal logical clock by a single tick.
     //
     // Returns true to indicate that there will probably be some readiness need to be handled.
@@ -255,6 +263,7 @@ impl<T: Storage> RawNode<T> {
         self.raft.step(m)
     }
 
+    // TODO 【 from 官方 】leader 通过 propose 命令将 client 发过来的 command 写入到 raft log，并复制给其他节点。
     // Propose proposes data be appended to the raft log.
     pub fn propose(&mut self, data: Vec<u8>, sync_log: bool) -> Result<()> {
         let mut m = Message::new();
@@ -269,6 +278,7 @@ impl<T: Storage> RawNode<T> {
         self.raft.step(m)
     }
 
+    // TODO 【 from 官方 】跟 propose 类似，只是单独用来处理 ConfChange 命令。
     // ProposeConfChange proposes a config change.
     pub fn propose_conf_change(&mut self, cc: ConfChange) -> Result<()> {
         let data = box_try!(protobuf::Message::write_to_bytes(&cc));
@@ -282,6 +292,7 @@ impl<T: Storage> RawNode<T> {
         self.raft.step(m)
     }
 
+    // TODO 【 from 官方 】当一个 ConfChange 的 log 被成功 applied，需要主动调用这个驱动 Raft。
     pub fn apply_conf_change(&mut self, cc: &ConfChange) -> ConfState {
         if cc.get_node_id() == INVALID_ID {
             self.raft.reset_pending_conf();
@@ -300,6 +311,7 @@ impl<T: Storage> RawNode<T> {
         cs
     }
 
+    // TODO 【 from 官方 】当节点收到其他节点发过来的 message，主动调用驱动 Raft。
     // Step advances the state machine using the given message.
     pub fn step(&mut self, m: Message) -> Result<()> {
         // ignore unexpected local messages receiving over network
@@ -321,6 +333,7 @@ impl<T: Storage> RawNode<T> {
         )
     }
 
+    // TODO 【 from 官方 】得到当前节点的 ready 状态，我们会在之前用 has_ready 来判断一个 RawNode 是否 ready。
     // Ready returns the current point-in-time state of this RawNode.
     pub fn ready(&mut self) -> Ready {
         Ready::new(&mut self.raft, &self.prev_ss, &self.prev_hs, None)
@@ -365,6 +378,7 @@ impl<T: Storage> RawNode<T> {
         self.raft.get_snap()
     }
 
+    // TODO 【 from 官方 】告诉 Raft 已经处理完 ready，开始后续的迭代。
     // Advance notifies the RawNode that the application has applied and saved progress in the
     // last Ready results.
     pub fn advance(&mut self, rd: Ready) {

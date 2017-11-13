@@ -1565,6 +1565,10 @@ impl<T: Transport, C: PdClient> Store<T, C> {
         let region_id = msg.get_header().get_region_id();
         let peer = self.region_peers.get_mut(&region_id).unwrap();
         let term = peer.term();
+
+        println!("#propose_raft_command() region_id({:?})  term({:?})",
+            region_id, term);
+
         bind_term(&mut resp, term);
         if peer.propose(cb, msg, resp, &mut self.raft_metrics.propose) {
             peer.mark_to_be_checked(&mut self.pending_raft_groups);
@@ -2420,6 +2424,7 @@ impl<T: Transport, C: PdClient> mio::Handler for Store<T, C> {
     type Message = Msg;
 
     fn notify(&mut self, event_loop: &mut EventLoop<Self>, msg: Msg) {
+        println!("#[notify] msg({:?})", msg);
         match msg {
             Msg::RaftMessage(data) => if let Err(e) = self.on_raft_message(data) {
                 error!("{} handle raft message err: {:?}", self.tag, e);
@@ -2429,6 +2434,7 @@ impl<T: Transport, C: PdClient> mio::Handler for Store<T, C> {
                 request,
                 callback,
             } => {
+                println!("#[notify] msg(Raft Command) request({:?})", request);
                 self.raft_metrics
                     .propose
                     .request_wait_time

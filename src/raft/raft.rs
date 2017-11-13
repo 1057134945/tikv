@@ -70,6 +70,7 @@ pub const INVALID_INDEX: u64 = 0;
 /// Config contains the parameters to start a raft.
 #[derive(Default)]
 pub struct Config {
+    // TODO 【 from 官方 】Raft 节点的唯一标识，在一个 Raft 集群里面，id 是不可能重复的。在 TiKV 里面，id 的通过 PD 来保证全局唯一。
     /// id is the identity of the local raft. ID cannot be 0.
     pub id: u64,
 
@@ -81,6 +82,7 @@ pub struct Config {
     /// peer is private and only used for testing right now.
     pub peers: Vec<u64>,
 
+    // TODO 【 from 官方 】当 follower 在 election_tick 的时间之后还没有收到 leader 发过来的消息，那么就会重新开始选举，TiKV 默认使用 50。
     /// ElectionTick is the number of node.tick invocations that must pass between
     /// elections. That is, if a follower does not receive any message from the
     /// leader of current term before ElectionTick has elapsed, it will become
@@ -88,22 +90,26 @@ pub struct Config {
     /// HeartbeatTick. We suggest election_tick = 10 * HeartbeatTick to avoid
     /// unnecessary leader switching
     pub election_tick: usize,
+    // TODO 【 from 官方 】 leader 每隔 hearbeat_tick 的时间，都会给 follower 发送心跳消息。默认 10。
     /// HeartbeatTick is the number of node.tick invocations that must pass between
     /// heartbeats. That is, a leader sends heartbeat messages to maintain its
     /// leadership every heartbeat ticks.
     pub heartbeat_tick: usize,
 
+    // TODO 【 from 官方 】 applied 是上一次已经被 applied 的 log index。
     /// Applied is the last applied index. It should only be set when restarting
     /// raft. raft will not return entries to the application smaller or equal to Applied.
     /// If Applied is unset when restarting, raft might return previous applied entries.
     /// This is a very application dependent configuration.
     pub applied: u64,
 
+    // TODO 【 from 官方 】 限制每次发送的最大 message size。默认 1MB。
     /// MaxSizePerMsg limits the max size of each append message. Smaller value lowers
     /// the raft recovery cost(initial probing and message lost during normal operation).
     /// On the other side, it might affect the throughput during normal replication.
     /// Note: math.MaxUusize64 for unlimited, 0 for at most one entry per message.
     pub max_size_per_msg: u64,
+    // TODO 【 from 官方 】 限制复制时候最大的 in-flight 的 message 的数量。默认 256。
     /// max_inflight_msgs limits the max number of in-flight append messages during optimistic
     /// replication phase. The application transportation layer usually has its own sending
     /// buffer over TCP/UDP. Setting MaxInflightMsgs to avoid overflowing that sending buffer.

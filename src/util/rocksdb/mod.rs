@@ -193,8 +193,14 @@ pub fn new_engine_opt(path: &str, opts: DBOptions, cfs_opts: Vec<CFOptions>) -> 
 }
 
 pub fn db_exist(path: &str) -> bool {
+    println!("db_exist: {}", path);
     let path = Path::new(path);
+    println!("db_exist: {} / {}", path.exists(), path.is_dir());
+//    println!(path);
+//    println!(path.exists());
+//    println!(path.is_dir());
     if !path.exists() || !path.is_dir() {
+        println!("db_exist: no");
         return false;
     }
 
